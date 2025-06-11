@@ -1,0 +1,64 @@
+channel coin, coffee, tea
+
+VM =
+coin ->
+      ( coffee -> VM
+        []
+        tea -> VM )
+
+NVM = coin ->
+    ( coffee -> NVM
+      |~|
+      tea -> NVM )
+
+assert NVM :[has trace[F]]: <coin,coffee>
+
+assert NVM :[deterministic[F]]
+
+SVM = coin ->
+    ( coffee -> SVM
+      |~|
+      tea -> SVM
+      |~|
+      STOP )
+
+
+assert SVM :[has trace[F]]: <coin, tea>
+
+assert SVM :[deterministic[F]]
+
+max_water = 6
+channel refill_water
+VMW =
+    let 
+        State(w) = 
+            ((w > 0) & coin ->
+                (coffee -> State(w-1)
+                []
+                tea -> State(w-1)))
+            []
+            (w == 0) & refill_water -> State(max_water)
+    within
+        State(max_water)
+
+assert VMW :[deadlock free]
+
+
+
+VMF =
+    let 
+       State(w) =
+        coin ->
+            ((w > 0) & 
+                (coffee -> State(w-1)
+                []
+                tea -> State(w-1)))
+        []
+        refill_water -> State(max_water)
+    within
+        State(max_water)
+
+assert VMF :[deadlock free]
+
+
+
