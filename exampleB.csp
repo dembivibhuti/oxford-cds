@@ -1,0 +1,64 @@
+channel coin, coffee, tea
+
+NVM = 
+    coin ->
+        ( coffee -> NVM
+        |~|
+        tea -> NVM )
+
+AllEvents = { coin, coffee, tea }
+
+EasyDrinker =
+  coin ->
+    ( coffee -> EasyDrinker
+      []
+      tea -> EasyDrinker )
+
+assert (NVM [ AllEvents || AllEvents ] EasyDrinker) :[deadlock free]
+
+CoffeeDrinker = coin -> coffee -> CoffeeDrinker
+TeaDrinker = coin -> tea -> TeaDrinker
+HardDrinker = coin ->
+                  ( coffee -> HardDrinker
+                    |~|
+                    tea -> HardDrinker )
+
+assert (NVM [ AllEvents || AllEvents ] CoffeeDrinker) :[deadlock free]
+assert (NVM [ AllEvents || AllEvents ] TeaDrinker) :[deadlock free]
+assert (NVM [ AllEvents || AllEvents ] HardDrinker) :[deadlock free]
+
+CoffeeDrinkerOrTeaDrinker = CoffeeDrinker |~| TeaDrinker
+
+-- assert (NVM [ AllEvents || AllEvents ] CoffeeDrinkerOrTeaDrinker) :[deadlock free]
+
+assert (EasyDrinker [ AllEvents || AllEvents ] EasyDrinker) :[deadlock free]
+
+
+PHIL = {0..4}
+FORK = {0..4}
+N = 5
+
+-- PHIL = {0,1}
+-- FORK = {0,1}
+-- N = 2
+
+channel sit, stand : PHIL
+channel up, down : PHIL.FORK
+
+aFork(f) = { up.p.f, down.p.f | p <- PHIL }
+Fork(f) = up?p!f -> down?q!f -> Fork(f)
+-- Fork(f) = up?p!f -> down!p!f -> Fork(f)
+
+aForks = Union({ aFork(f) | f <- FORK })
+Forks = || f : FORK @ [aFork(f)] Fork(f)
+
+
+aPhil(p) = { sit.p, stand.p, up.p.p, up.p.(p-1)%N, down.p.(p-1)%N, down.p.p }
+Phil(p) =
+    sit.p -> up.p.p -> up.p.(p-1)%N ->  down.p.(p-1)%N -> down.p.p -> stand.p -> Phil(p)
+
+aPhils = Union({ aPhil(p) | p <- PHIL })
+Phils = || p : PHIL @ [aPhil(p)] Phil(p)
+
+System = Phils [ aPhils || aForks ] Forks
+assert System :[deadlock free]
