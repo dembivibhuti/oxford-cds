@@ -1,0 +1,44 @@
+PlayerID = {0,1}
+K = 15
+channel look : PlayerID . {0..K}
+channel take : PlayerID . {0..K}
+channel turn, win : PlayerID
+min(i,j) = if i < j then i else j
+
+
+-- constraints
+alphaMatches = {| look, take |}
+Matches = 
+    let
+        Remaining(n) =
+            ((n > 0) & [] m : {1..n} @ take?p!m -> Remaining(n-m))
+            []
+            look?p!n -> Remaining(n)
+    within
+        Remaining(K)
+
+
+alphaPlayer(p) = {| turn, look.p, take.p, win.p |}
+
+Player(p) =
+    let
+        YourTurn = turn.(p+1)%2 -> MyTurn
+        MyTurn = turn.p -> Look(p)
+        Look(p) = look!p?n -> Looked(n)
+        
+        Looked(n) = 
+            ((n > 0) & (|~| k : {1..min(3,n)} @ take!p!k -> YourTurn))
+            []
+            (n == 0) &  win.p -> STOP
+
+    within
+        MyTurn [] YourTurn
+
+alphaPlayers = {| turn, look, take, win |}
+Players = || p : PlayerID @ [alphaPlayer(p)] Player(p)
+Game = Matches [ alphaMatches || alphaPlayers ] Players
+
+-- SomebodyWins
+
+
+-- SmartPlayer
