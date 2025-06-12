@@ -44,3 +44,50 @@ SomebodyWins = |~| p : PlayerID @ win.p -> STOP
 assert SomebodyWins [F= Game \ {| turn, take, look |}
 
 -- SmartPlayer
+
+
+-- Bridges Problem
+datatype LOC = A | B | C | D
+channel start, depart, arrive, finish : LOC
+
+Location(l) =
+    let
+        Here = depart.l -> NotHere
+        NotHere = start.l -> Here [] arrive.l -> Here [] finish.l -> STOP 
+    within
+        NotHere
+
+Locations = ||| l : LOC @ Location(l)
+
+channel done
+
+Bridge(l,m) =
+    depart.l -> arrive.m -> done -> STOP
+    []
+    depart.m -> arrive.l -> done -> STOP
+
+bridge(1) = Bridge(A,B)
+bridge(2) = Bridge(A,B)
+bridge(3) = Bridge(A,C)
+bridge(4) = Bridge(B,C)
+bridge(5) = Bridge(D,C)
+bridge(6) = Bridge(D,B)
+bridge(7) = Bridge(D,B)
+bridge(8) = Bridge(D,C)
+
+Bridges = [| {done} |] b : {1..8} @ bridge(b)
+
+City = Locations [| {| arrive, depart, finish |} |] Bridges
+
+Start = [] l : LOC @ start.l -> done -> finish.l -> STOP
+
+Routes = City [| {| start, finish |} |] Start
+
+assert STOP [T= Routes \ {| start, arrive, depart |}
+assert Routes \ {| start, arrive, depart |} [T= done -> STOP
+
+check(l) = done -> done -> done -> done -> done -> done -> done -> done -> finish.l -> STOP
+Spec = [] l : LOC @ start.l -> check(l)
+
+assert Spec [T= Routes \ {| arrive, depart |} 
+
