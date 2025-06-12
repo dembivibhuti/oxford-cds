@@ -39,6 +39,8 @@ Players = || p : PlayerID @ [alphaPlayer(p)] Player(p)
 Game = Matches [ alphaMatches || alphaPlayers ] Players
 
 -- SomebodyWins
+SomebodyWins = |~| p : PlayerID @ win.p -> STOP
 
+assert SomebodyWins [F= Game \ {| turn, take, look |}
 
 -- SmartPlayer
