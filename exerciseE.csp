@@ -1,0 +1,37 @@
+channel selectHigh, selectLow, fire, cancel
+channel beamHigh, beamLow, shieldHigh, shieldLow
+
+-- safety specification
+datatype Position = high | low
+
+Safe = let
+    State(shield,beam) =
+        shield == beam & fire -> State(shield,beam)
+        []
+        shieldLow -> State(low,beam)
+        []
+        shieldHigh -> State(high,beam)
+        []
+        beamLow -> State(shield,low)
+        []
+        beamHigh -> State(shield,high)
+    within
+        State(low,low)
+
+SetLow = (beamLow -> SKIP ||| shieldLow -> SKIP)
+SetHigh = (beamHigh -> SKIP ||| shieldHigh -> SKIP)
+
+SafeMachine =
+    let
+        Ready = 
+            selectHigh -> HighTreatment ; Ready
+            []
+            selectLow -> LowTreatment ; Ready
+
+        HighTreatment =  SetHigh ; fire -> SetLow 
+        LowTreatment = fire -> SKIP
+    within
+        SetLow ; Ready
+
+
+assert Safe [T= SafeMachine \ { selectHigh, selectLow, cancel }
