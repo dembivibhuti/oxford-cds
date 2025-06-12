@@ -86,6 +86,7 @@ Routes = City [| {| start, finish |} |] Start
 assert STOP [T= Routes \ {| start, arrive, depart |}
 assert Routes \ {| start, arrive, depart |} [T= done -> STOP
 
+-- degree needs to be even and graph nodes need to be connected
 check(l) = done -> done -> done -> done -> done -> done -> done -> done -> finish.l -> STOP
 Spec = [] l : LOC @ start.l -> check(l)
 
