@@ -1,0 +1,34 @@
+channel a, b, c, d, e, f
+
+P = a -> e -> P
+    []
+    b -> f -> P
+
+Q = c -> e -> Q
+    []
+    d -> f -> Q
+
+PQ = P [| {e,f} |] Q
+
+assert PQ :[deadlock free]
+
+assert PQ \ {a,b,c,d} :[deadlock free]
+
+R = a -> c -> R
+    []
+    b -> d -> R
+    []
+    c -> a -> R
+    []
+    d -> b -> R
+
+System =
+  (PQ \ {b}) [| {a,b,c,d} |] R
+
+assert System :[deadlock free]
+
+PQh =
+  (P \ {a,b}) [| {e,f} |] (Q \ {c,d})
+
+assert PQh :[deadlock free]
+  

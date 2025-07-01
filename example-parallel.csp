@@ -1,0 +1,24 @@
+channel a, b, c, d
+
+
+P = a -> c -> STOP
+
+Q = b -> d -> STOP
+    []
+    a -> d -> STOP
+
+System = P [| {a,b} |] Q
+
+-- see also Euler
+
+alphaP = {a,b,c}
+
+alphaQ = {a,b,d}
+
+PQ = P [ alphaP || alphaQ ] Q
+
+assert PQ [FD= System
+assert System [FD= PQ
+
+-- if you leave b out of alphaP, of course, then only a is being
+-- shared as a common transaction

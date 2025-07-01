@@ -1,0 +1,46 @@
+channel a, b, c, d, e, done
+
+PparQ = P [ aP || aQ ] Q \ {done}
+
+P =
+  let
+    P1 = a -> P2
+    P2 = b -> P1
+         []
+	 c -> P3
+    P3 = done -> STOP
+  within
+    P1
+
+Q =
+  let
+    Q1 = d -> Q2
+    Q2 = e -> Q1
+  within
+    done -> Q1
+
+aP = {a,b,c,done}
+
+aQ = {done,d,e}
+
+PS =
+  let
+    P1 = a -> P2
+    P2 = b -> P1
+         []
+	 c -> P3
+    P3 = SKIP 
+  within
+    P1
+
+QS =
+  let
+    Q1 = d -> Q2
+    Q2 = e -> Q1
+  within
+    Q1
+
+PseqQ = PS ; QS
+
+assert PseqQ [FD= PparQ
+assert PparQ [FD= PseqQ

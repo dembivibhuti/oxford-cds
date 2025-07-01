@@ -1,0 +1,46 @@
+-- medical accelerator
+
+datatype position = high | low
+
+channel setHigh, setLow, fire, cancel, shieldHigh, shieldLow, beamHigh, beamLow 
+
+System = 
+  SetLow ; Ready
+
+Ready = 
+  setHigh -> High [] setLow -> Low
+
+High = 
+  (HighTreatment /\ cancel -> SKIP) ; Ready
+
+HighTreatment = 
+  SetHigh ; fire -> SKIP ; SetLow 
+
+SetHigh = 
+  beamHigh -> SKIP ||| shieldHigh -> SKIP 
+
+SetLow = 
+  beamLow -> SKIP ||| shieldLow -> SKIP
+
+Low  = 
+  (LowTreatment /\ cancel -> SKIP) ; Ready
+
+LowTreatment = 
+  fire -> SKIP
+
+Safe =
+  let
+    State(b,s) =
+      (b == s) & fire -> State(b,s)
+      []
+      beamHigh -> State(high,s)
+      []
+      beamLow -> State(low,s)
+      []
+      shieldHigh -> State(b,high)
+      []
+      shieldLow -> State(b,low)
+  within
+    State(low,low)
+
+assert Safe [T= System \ { setHigh, setLow, cancel } 

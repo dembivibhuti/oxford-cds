@@ -1,0 +1,221 @@
+-- vending machines 
+
+channel coin, coffee, tea
+
+NVM =
+  coin ->
+    ( coffee -> NVM
+      |~|
+      tea -> NVM )
+
+AllEvents = { coin, coffee, tea }
+
+EasyDrinker =
+  coin ->
+    ( coffee -> EasyDrinker
+      []
+      tea -> EasyDrinker ) 
+
+CoffeeDrinker = coin -> coffee -> CoffeeDrinker
+
+TeaDrinker = coin -> tea -> TeaDrinker
+
+HardDrinker = coin ->
+                ( coffee -> HardDrinker
+                  |~|
+                  tea -> HardDrinker )
+
+CoffeeDrinkerOrTeaDrinker = CoffeeDrinker |~| TeaDrinker 
+
+assert HardDrinker [T= (CoffeeDrinker |~| TeaDrinker) 
+assert (CoffeeDrinker |~| TeaDrinker) [T= HardDrinker 
+
+-- a hard drinker can change their mind after every coin, so there are
+-- traces of that process that are not traces of TeaDrinker |~|
+-- CoffeeDrinker, where the choice is made only once 
+
+-- abstract
+
+channel aa, bb, cc, dd, ee, ff
+
+-- if we are putting this answer in the same script as other material,
+-- then we need to be careful about channel names (if we just said a,
+-- b etc then we can't use a and b as variable names later - "channel
+-- a" is a GLOBAL declaration and will mess with comprehensions and
+-- choices if we then used "a" as the name of a variable or index
+-- there)
+
+P = aa -> ee -> P
+    []
+    bb -> ff -> P
+
+Q = cc -> ee -> Q
+    []
+    dd -> ff -> Q
+
+PQ = P [ {aa,bb,ee,ff} || {cc,dd,ee,ff} ] Q
+
+assert PQ :[deadlock free]
+
+R = aa -> cc -> R
+    []
+    cc -> aa -> R
+    []
+    bb -> dd -> R
+    []
+    dd -> bb -> R
+
+PQR = PQ [ {aa,bb,cc,dd,ee,ff} || {aa,bb,cc,dd} ] R
+
+-- you could also have R (unnecessarily) involved in both ee and ff, but
+-- if you do, you need to add those two events to the alphabet of R,
+-- or they will be (silently!) blocked
+
+assert PQR :[deadlock free]
+
+-- DINING PHILOSOPHERS
+
+FORK = {0..4}
+PHIL = {0..4}
+
+channel sit, stand : PHIL
+channel up, down : PHIL . FORK
+
+aFork(f) = { up.p.f, down.p.f | p <- PHIL }
+
+Fork(f) = up?p!f -> down?q!f -> Fork(f)
+
+aPhil(p) = {| up.p, down.p, sit.p, stand.p |} 
+
+Phil(p) =
+  sit.p ->
+    up.p.p ->
+      up.p.(p-1)%5 ->
+        down.p.(p-1)%5 ->
+          down.p.p ->
+              stand.p -> Phil(p)
+
+aPhils = Union({ aPhil(p) | p <- PHIL})
+
+Phils = || p : PHIL @ [aPhil(p)] Phil(p)
+
+aForks = Union({ aFork(f) | f <- FORK})
+
+Forks = || f : FORK @ [aFork(f)] Fork(f)
+
+System = Phils [ aPhils || aForks ] Forks
+
+assert System :[deadlock free]
+
+aButler = {| sit, stand |}
+
+Butler =
+  let
+    Sitting(k) =
+      k < 4 & sit?j -> Sitting(k+1)
+      []
+      k > 0 & stand?j -> Sitting(k-1)
+  within
+    Sitting(0)
+
+aSystem = union(aPhils,aForks)
+
+ButlerSystem =
+  Butler [ aButler || aSystem ] System
+
+assert ButlerSystem :[deadlock free]
+
+--
+
+PersonID = {0,1,2}
+
+datatype Sides = inside | outside 
+channel enter, leave : Sides . PersonID
+
+channel rotate
+
+channel detect : Sides . PersonID 
+
+aDoor = {| enter, leave, rotate |}
+
+Door =
+  let
+    State(Outside,TurningIn,Inside,TurningOut) =
+      empty(Outside) &
+        enter.outside?p ->
+          State({p},TurningIn,Inside,TurningOut)
+      []
+      ( [] p : Outside @
+        leave.outside.p ->
+          State({},TurningIn,Inside,TurningOut) )
+      []          
+      empty(Inside) &
+        enter.inside?p ->
+          State(Outside,TurningIn,{p},TurningOut)
+      []
+      ( [] p : Inside @
+        leave.inside.p ->
+          State(Outside,TurningIn,{},TurningOut) )
+      []          
+      rotate ->
+        State(TurningOut,Outside,TurningIn,Inside)
+  within
+    State({},{},{},{})
+
+aDoorController = {| detect, rotate |}
+
+DoorController =
+  let
+    Rotates(n) =
+      n > 0 & rotate -> Rotates(n-1)
+      []
+      detect?s?p -> Rotates(4)
+  within
+    Rotates(0)
+
+aAssumption = {| enter, leave, detect |}
+
+Assumption =
+  || p : PersonID @ [aConstraint(p)] Constraint(p)
+
+aConstraint(p) =
+  { enter.s.p, leave.s.p, detect.s.p | s <- Sides }
+
+Constraint(p) =
+  let
+    NotDetectable = 
+      leave?s!p -> Detectable 
+
+    Detectable =
+      detect?s!p -> Detected(s) 
+
+    Detected(s) =
+      enter!s!p -> NotDetectable
+--      []
+--      detect?t!p -> Detected(t)
+  within 
+    Detectable
+
+-- we may or may not decide that the detector/sensor can be triggered
+-- multiple times by the same 'entry'
+
+-- it will make a difference to one of the trace checks, but not the
+-- final refinement
+
+assert Constraint(0) :[has trace[T]]: <detect.inside.0,enter.inside.0>
+
+assert Constraint(0) :[has trace[T]]: <detect.inside.0,enter.inside.0,leave.inside.0,enter.inside.0>
+
+assert Constraint(0) :[has trace[T]]: <detect.inside.0,detect.inside.0,enter.inside.0>
+
+assert Constraint(0) :[has trace[T]]: <detect.inside.0,leave.inside.0, detect.inside.0,enter.inside.0>
+
+aDoorSystem = {| enter, leave, rotate, detect |}
+
+DoorSystem =
+  Door [ aDoor || aDoorController ] DoorController
+
+DoorSystemWithAssumption =
+  DoorSystem [ aDoorSystem || aAssumption ] Assumption
+  
+assert DoorSystemWithAssumption :[deadlock free]

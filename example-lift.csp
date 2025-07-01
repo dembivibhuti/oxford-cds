@@ -1,0 +1,44 @@
+channel up, down, open, close, arrive
+
+OpenOrCloseUnlessMoving =
+  let
+    Start =
+      ReadyToOpen |~| ReadyToClose
+
+      ReadyToOpen =
+        open -> Start
+	[]
+        (|~| e : {up,down} @ e -> Moving)
+
+      ReadyToClose =
+        close -> Start 
+	[]
+        (|~| e : {up,down} @ e -> Moving)
+
+      Moving =
+        arrive -> Start
+  within
+    Start
+
+max = 1
+
+LiftController =
+  let 
+    AtFloorOpen(n) = 
+      close -> AtFloorClosed(n)
+      []
+      (n < max) & up -> arrive -> AtFloorOpen(n+1)
+      []
+      (n > 0) & down -> arrive -> AtFloorOpen(n-1)
+ 
+    AtFloorClosed(n) =
+      close -> AtFloorOpen(n)
+      []
+      (n < max) & up -> arrive -> AtFloorOpen(n+1)
+      []
+      (n > 0) & down -> arrive -> AtFloorOpen(n-1)
+  within
+    AtFloorOpen(0)
+
+assert OpenOrCloseUnlessMoving [FD= LiftController
+

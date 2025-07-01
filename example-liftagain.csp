@@ -1,0 +1,56 @@
+channel up, down, open, close, arrive
+
+SimpleSpec = open -> SimpleSpec 
+
+Spec =
+  let
+    Start =
+      ReadyToOpen |~| ReadyToArriveOrClose
+      
+    ReadyToOpen =
+      open -> Start
+
+    ReadyToArriveOrClose =
+      close -> Start
+      |~|
+      arrive -> Start
+  within
+    Start
+
+max = 1
+
+LiftController =
+  let 
+    AtFloorOpen(n) = 
+      close -> AtFloorClosed(n)
+      []
+      (n < max) & up -> arrive -> AtFloorOpen(n+1)
+      []
+      (n > 0) & down -> arrive -> AtFloorOpen(n-1)
+ 
+    AtFloorClosed(n) =
+      open -> AtFloorOpen(n)
+      []
+      (n < max) & up -> arrive -> AtFloorOpen(n+1)
+      []
+      (n > 0) & down -> arrive -> AtFloorOpen(n-1)
+  within
+    AtFloorOpen(0)
+
+assert Spec [FD= LiftController \ { up, down }
+
+assert SimpleSpec [FD= LiftController \ { up, down, arrive, close }
+
+LiftControllerA =
+  LiftController [ {up,down,close,open,arrive} || {up} ] Assumption
+
+Assumption =
+  let
+    Allowed(n) =
+      n > 0 & up -> Allowed(n-1)
+  within
+    Allowed(10)
+
+assert SimpleSpec [FD= LiftControllerA \ { up, down, arrive, close }
+
+

@@ -1,0 +1,19 @@
+
+channel beamHigh, shieldHigh
+
+SetHigh = (beamHigh -> SKIP ||| shieldHigh -> SKIP)
+
+Traces =
+  STOP
+  |~|
+  beamHigh -> STOP
+  |~|
+  beamHigh -> shieldHigh -> SKIP
+  |~|
+  shieldHigh -> STOP
+  |~|
+  shieldHigh -> beamHigh -> SKIP
+
+assert Traces [T= SetHigh
+assert SetHigh [T= Traces
+
