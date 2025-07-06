@@ -36,12 +36,17 @@ PQR = PQ [alphaPQ || alphaR] R
 
 assert PQR :[deadlock free]
 
-
-
 S = let
-        S1 = a -> c -> S3 [] c -> S3 [] b -> d -> S5 [] d -> S5
-        S3 = e -> S1
-        S5 = f -> S1
-    within S1
+        X = STOP
+            |~|
+            (a -> X [] b -> X [] c -> X [] d -> X [] e -> X [] f -> X)
+    within
+        X
+
+--- S = let
+---        S1 = a -> c -> S3 [] c -> S3 [] b -> d -> S5 [] d -> S5
+---        S3 = e -> S1
+---        S5 = f -> S1
+---    within S1
 
 assert S [FD= PQR
